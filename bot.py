@@ -26,8 +26,17 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+def _env(name: str, default: str = "") -> str:
+    """Read an env var, tolerating a pasted 'NAME=value' line, quotes, and stray whitespace."""
+    value = os.getenv(name, default).strip().strip("'\"")
+    prefix = f"{name}="
+    if value.startswith(prefix):
+        value = value[len(prefix):].strip().strip("'\"")
+    return value
+
+
+TELEGRAM_TOKEN = _env("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = _env("TELEGRAM_CHAT_ID")
 INTERVAL_HOURS = float(os.getenv("INTERVAL_HOURS", "6"))
 # Look back a bit further than the interval so a late run (e.g. Mac was asleep) doesn't miss anything;
 # seen.json prevents re-posting the overlap.
@@ -239,6 +248,12 @@ def main() -> None:
 
     if not TELEGRAM_TOKEN:
         sys.exit("TELEGRAM_TOKEN is not set in .env")
+    try:
+        me = tg("getMe")
+    except Exception as e:
+        sys.exit(f"TELEGRAM_TOKEN is invalid (Telegram rejected it): {e}\n"
+                 "Check the value is just the token, e.g. 123456:ABC..., with no 'TELEGRAM_TOKEN=' prefix.")
+    log.info("authenticated as @%s", me.get("username"))
 
     if args.discover:
         discover()
