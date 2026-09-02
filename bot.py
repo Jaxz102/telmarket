@@ -201,9 +201,6 @@ def run_once(dry_run: bool = False) -> None:
         log.info("nothing new to post")
         return
 
-    if not TELEGRAM_CHAT_ID:
-        sys.exit("TELEGRAM_CHAT_ID is not set in .env — run `python bot.py --discover` to find it")
-
     send(new)
     for it in new:
         seen[it["url"]] = it["published"].isoformat()
@@ -246,6 +243,8 @@ def main() -> None:
     if args.discover:
         discover()
         return
+    if not args.dry_run and not TELEGRAM_CHAT_ID:
+        sys.exit("TELEGRAM_CHAT_ID is not set — run `python bot.py --discover` to find it")
     if args.once or args.dry_run:
         run_once(dry_run=args.dry_run)
         return
