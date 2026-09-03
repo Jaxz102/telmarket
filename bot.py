@@ -207,7 +207,10 @@ def run_once(dry_run: bool = False) -> None:
         return
 
     if not new:
-        log.info("nothing new to post")
+        if not items:
+            log.info("no insider purchases found in the last %g h — no Telegram message sent", LOOKBACK_HOURS)
+        else:
+            log.info("%d purchase(s) in window but all already posted — no Telegram message sent", len(items))
         return
 
     send(new)
