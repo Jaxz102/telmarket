@@ -85,6 +85,19 @@ def parse_published(card) -> datetime | None:
         return None
 
 
+def company_from_title(title: str, ticker: str | None) -> str | None:
+    tick = re.escape(ticker) if ticker else r"[A-Z]+:[A-Z0-9.\-]+"
+    m = re.search(r"^(.*?)\s*\(" + tick + r"\)", title)
+    if not m:
+        return None
+    name = re.sub(r"^Insider (?:Buying|Selling):\s*", "", m.group(1))
+    # 'Person Buys N Shares of <Company>' — keep everything after the last 'Shares of'
+    m2 = re.search(r"\bShares of\s+(.+)$", name)
+    if m2:
+        name = m2.group(1)
+    return name.strip() or None
+
+
 def parse_cards(html: str) -> list[dict]:
     soup = BeautifulSoup(html, "html.parser")
     items = []
@@ -98,12 +111,14 @@ def parse_cards(html: str) -> list[dict]:
         ticker = None
         if sym is not None:
             ticker = f"{sym.get('data-prefix', '')}:{sym.get('data-symbol', '')}".strip(":")
+        title = title_el.get_text(strip=True)
         items.append(
             {
-                "title": title_el.get_text(strip=True),
+                "title": title,
                 "url": link_el["href"],
                 "published": published,
                 "ticker": ticker,
+                "company": company_from_title(title, ticker),
             }
         )
     return items
@@ -173,8 +188,12 @@ def format_messages(items: list[dict]) -> list[str]:
     header = f"🟢 <b>Insider Purchases</b> — {len(items)} new\n\n"
     lines = []
     for it in items:
-        ticker = f"<b>{html_escape(it['ticker'])}</b> · " if it["ticker"] else ""
-        lines.append(f"• {ticker}<a href=\"{it['url']}\">{html_escape(it['title'])}</a>")
+        prefix = ""
+        if it["ticker"]:
+            prefix += f"<b>{html_escape(it['ticker'])}</b> · "
+        if it.get("company"):
+            prefix += f"{html_escape(it['company'])} · "
+        lines.append(f"• {prefix}<a href=\"{it['url']}\">{html_escape(it['title'])}</a>")
     # Telegram caps messages at 4096 chars; chunk if needed.
     messages, current = [], header
     for line in lines:
@@ -203,7 +222,8 @@ def run_once(dry_run: bool = False) -> None:
 
     if dry_run:
         for it in new:
-            print(f"{it['published'].isoformat()}  {it['ticker'] or '-':14}  {it['title']}\n    {it['url']}")
+            print(f"{it['published'].isoformat()}  {it['ticker'] or '-':14}  {it.get('company') or '-'}\n"
+                  f"    {it['title']}\n    {it['url']}")
         return
 
     if not new:
