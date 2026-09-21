@@ -31,6 +31,15 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python bot.py --once
 
+      - name: Trigger Synra poll
+        if: always()
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail --silent --show-error --max-time 60 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://synra-three.vercel.app/api/cron/poll
+
       - name: Persist seen.json
         run: |
           git config user.name "github-actions[bot]"
