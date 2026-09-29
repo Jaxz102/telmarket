@@ -26,16 +26,18 @@ cp .env.example .env   # fill in TELEGRAM_TOKEN and TELEGRAM_CHAT_ID
 .venv/bin/python bot.py             # loop forever, every INTERVAL_HOURS
 ```
 
-### Every 6 hours via GitHub Actions (recommended, free)
+### Weekdays via GitHub Actions + Google Cloud Scheduler (recommended, free)
 
-`.github/workflows/insider-alerts.yml` runs `bot.py --once` on a 6-hour cron and commits `seen.json`
-back to the repo so state survives between runs.
+`.github/workflows/insider-alerts.yml` runs `bot.py --once` and commits `seen.json` back to the repo so
+state survives between runs. It has no cron of its own (GitHub's scheduler ran hours late); a Google Cloud
+Scheduler job (`0 7,11,13,15 * * 1-5`, America/New_York) POSTs to
+`https://api.github.com/repos/Jaxz102/telmarket/actions/workflows/insider-alerts.yml/dispatches` with body
+`{"ref":"main"}` and an `Authorization: Bearer <token>` header (fine-grained PAT, Actions: read & write).
+`LOOKBACK_HOURS=66` covers the Friday→Monday gap.
 
 1. Push this repo to GitHub.
 2. Repo → Settings → Secrets and variables → Actions → add `TELEGRAM_TOKEN` and `TELEGRAM_CHAT_ID`.
 3. Actions tab → "Insider purchase alerts" → Run workflow, to test.
-
-Note: GitHub disables scheduled workflows after 60 days with no commits — the state commits keep it alive.
 
 ### Running locally on a schedule
 

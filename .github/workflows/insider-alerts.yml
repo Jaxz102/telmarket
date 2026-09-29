@@ -1,12 +1,10 @@
 name: Insider purchase alerts
 
 on:
-  schedule:
-    # Target: 7AM, 11AM, 1PM, 3PM US/Eastern, weekdays only.
-    # Cron is UTC-only, so this fires at the union of the EDT (UTC-4) and
-    # EST (UTC-5) equivalents; the gate job below drops the wrong-offset runs.
-    - cron: "0 11,12,15,16,17,18,19,20 * * 1-5"
-  workflow_dispatch:         # allow manual runs from the Actions tab
+  # Triggered by Google Cloud Scheduler via the workflow_dispatch REST API at
+  # 7AM, 11AM, 1PM, 3PM America/New_York, weekdays only. GitHub's own cron
+  # trigger was dropped: it ran hours late and skipped runs entirely.
+  workflow_dispatch:         # also allows manual runs from the Actions tab
 
 concurrency:
   group: insider-alerts
@@ -16,28 +14,7 @@ permissions:
   contents: write            # needed to commit seen.json back
 
 jobs:
-  gate:
-    # Scheduled runs only proceed at 07/11/13/15 US/Eastern on a weekday.
-    runs-on: ubuntu-latest
-    outputs:
-      proceed: ${{ steps.check.outputs.proceed }}
-    steps:
-      - id: check
-        run: |
-          if [ "${{ github.event_name }}" != "schedule" ]; then
-            echo "proceed=true" >> "$GITHUB_OUTPUT"; exit 0
-          fi
-          hour=$(TZ=America/New_York date +%-H)
-          dow=$(TZ=America/New_York date +%u)
-          case "$hour" in
-            7|11|13|15) [ "$dow" -le 5 ] && echo "proceed=true" >> "$GITHUB_OUTPUT" || echo "proceed=false" >> "$GITHUB_OUTPUT" ;;
-            *) echo "proceed=false" >> "$GITHUB_OUTPUT" ;;
-          esac
-          echo "US/Eastern hour=$hour dow=$dow"
-
   run:
-    needs: gate
-    if: needs.gate.outputs.proceed == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -53,6 +30,8 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # Longest gap between runs is Fri 3PM -> Mon 7AM (64h); seen.json dedupes the overlap.
+          LOOKBACK_HOURS: "66"
         run: python bot.py --once
 
       - name: Trigger Synra poll
