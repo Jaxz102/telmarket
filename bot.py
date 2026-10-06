@@ -172,8 +172,17 @@ def save_seen(seen: dict[str, str]) -> None:
 
 # --------------------------------------------------------------------------- telegram
 
+class TelegramUnavailable(Exception):
+    """Telegram is unreachable or failing on its end — skip the run rather than fail it."""
+
+
 def tg(method: str, **params):
-    resp = requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/{method}", json=params, timeout=30)
+    try:
+        resp = requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/{method}", json=params, timeout=30)
+    except requests.RequestException as e:  # timeout, connection error
+        raise TelegramUnavailable(f"{method}: {e}") from e
+    if resp.status_code >= 500 or resp.status_code == 429:
+        raise TelegramUnavailable(f"{method}: HTTP {resp.status_code}")
     data = resp.json()
     if not data.get("ok"):
         raise RuntimeError(f"Telegram {method} failed: {data}")
@@ -184,7 +193,8 @@ def html_escape(s: str) -> str:
     return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def format_messages(items: list[dict]) -> list[str]:
+def format_messages(items: list[dict]) -> list[tuple[str, list[dict]]]:
+    """Return (message text, items in that message) pairs."""
     header = f"🟢 <b>Insider Purchases</b> — {len(items)} new\n\n"
     lines = []
     for it in items:
@@ -195,20 +205,27 @@ def format_messages(items: list[dict]) -> list[str]:
             prefix += f"{html_escape(it['company'])} · "
         lines.append(f"• {prefix}<a href=\"{it['url']}\">{html_escape(it['title'])}</a>")
     # Telegram caps messages at 4096 chars; chunk if needed.
-    messages, current = [], header
-    for line in lines:
+    messages, current, chunk = [], header, []
+    for it, line in zip(items, lines):
         if len(current) + len(line) + 1 > 4000:
-            messages.append(current.rstrip())
-            current = ""
+            messages.append((current.rstrip(), chunk))
+            current, chunk = "", []
         current += line + "\n"
-    messages.append(current.rstrip())
+        chunk.append(it)
+    messages.append((current.rstrip(), chunk))
     return messages
 
 
-def send(items: list[dict]) -> None:
-    for text in format_messages(items):
-        tg("sendMessage", chat_id=TELEGRAM_CHAT_ID, text=text, parse_mode="HTML",
-           disable_web_page_preview=True)
+def send(items: list[dict], posted: list[dict]) -> None:
+    """Post items, appending each to `posted` once delivered; stops early if Telegram goes down."""
+    for text, chunk in format_messages(items):
+        try:
+            tg("sendMessage", chat_id=TELEGRAM_CHAT_ID, text=text, parse_mode="HTML",
+               disable_web_page_preview=True)
+        except TelegramUnavailable as e:
+            log.warning("Telegram unavailable, leaving %d item(s) for next run: %s", len(items) - len(posted), e)
+            break
+        posted.extend(chunk)
         time.sleep(1)
 
 
@@ -216,7 +233,11 @@ def send(items: list[dict]) -> None:
 
 def run_once(dry_run: bool = False) -> None:
     seen = load_seen()
-    items = scrape_purchases(LOOKBACK_HOURS)
+    try:
+        items = scrape_purchases(LOOKBACK_HOURS)
+    except requests.RequestException as e:
+        log.warning("MarketBeat unavailable, skipping this run: %s", e)
+        return
     new = [it for it in items if it["url"] not in seen]
     log.info("found %d purchases in window, %d new", len(items), len(new))
 
@@ -233,11 +254,16 @@ def run_once(dry_run: bool = False) -> None:
             log.info("%d purchase(s) in window but all already posted — no Telegram message sent", len(items))
         return
 
-    send(new)
-    for it in new:
-        seen[it["url"]] = it["published"].isoformat()
-    save_seen(seen)
-    log.info("posted %d items", len(new))
+    posted: list[dict] = []
+    try:
+        send(new, posted)
+    finally:
+        # record whatever went out, even if a later message failed, so it isn't re-posted
+        if posted:
+            for it in posted:
+                seen[it["url"]] = it["published"].isoformat()
+            save_seen(seen)
+            log.info("posted %d of %d items", len(posted), len(new))
 
 
 def discover() -> None:
@@ -273,6 +299,11 @@ def main() -> None:
         sys.exit("TELEGRAM_TOKEN is not set in .env")
     try:
         me = tg("getMe")
+    except TelegramUnavailable as e:
+        if not args.once:  # loop mode should fail loudly so a supervisor can restart it
+            sys.exit(f"Telegram unavailable: {e}")
+        log.warning("Telegram unavailable, skipping this run: %s", e)
+        return
     except Exception as e:
         sys.exit(f"TELEGRAM_TOKEN is invalid (Telegram rejected it): {e}\n"
                  "Check the value is just the token, e.g. 123456:ABC..., with no 'TELEGRAM_TOKEN=' prefix.")

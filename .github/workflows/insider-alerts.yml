@@ -45,6 +45,7 @@ jobs:
             https://synra-three.vercel.app/api/cron/poll
 
       - name: Persist seen.json
+        if: success() || failure()  # keep items posted before a mid-send failure from being re-posted
         run: |
           git config user.name "Jaxz102"
           git config user.email "42484410+Jaxz102@users.noreply.github.com"
