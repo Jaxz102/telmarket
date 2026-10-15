@@ -38,8 +38,6 @@ def _env(name: str, default: str = "") -> str:
 TELEGRAM_TOKEN = _env("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = _env("TELEGRAM_CHAT_ID")
 INTERVAL_HOURS = float(os.getenv("INTERVAL_HOURS", "6"))
-# Look back a bit further than the interval so a late run (e.g. Mac was asleep) doesn't miss anything;
-# seen.json prevents re-posting the overlap.
 LOOKBACK_HOURS = float(os.getenv("LOOKBACK_HOURS", str(INTERVAL_HOURS + 1)))
 MAX_PAGES = int(os.getenv("MAX_PAGES", "10"))
 STATE_FILE = BASE_DIR / os.getenv("STATE_FILE", "seen.json")
@@ -59,7 +57,6 @@ SELL_RE = re.compile(r"\b(sell|sells|selling|sold|sale|dispose|disposes|disposed
 log = logging.getLogger("telmarket")
 
 
-# --------------------------------------------------------------------------- scraping
 
 def fetch_page(page: int) -> str:
     url = LIST_URL if page == 1 else f"{LIST_URL}page/{page}/"
@@ -91,7 +88,6 @@ def company_from_title(title: str, ticker: str | None) -> str | None:
     if not m:
         return None
     name = re.sub(r"^Insider (?:Buying|Selling):\s*", "", m.group(1))
-    # 'Person Buys N Shares of <Company>' — keep everything after the last 'Shares of'
     m2 = re.search(r"\bShares of\s+(.+)$", name)
     if m2:
         name = m2.group(1)
@@ -143,7 +139,6 @@ def scrape_purchases(lookback_hours: float) -> list[dict]:
         log.debug("page %d: %d cards, oldest %s", page, len(cards), oldest.isoformat())
         if oldest < cutoff:
             break
-    # de-dupe by url, keep order
     seen, unique = set(), []
     for r in results:
         if r["url"] not in seen:
@@ -152,7 +147,6 @@ def scrape_purchases(lookback_hours: float) -> list[dict]:
     return unique
 
 
-# --------------------------------------------------------------------------- state
 
 def load_seen() -> dict[str, str]:
     if STATE_FILE.exists():
@@ -164,13 +158,11 @@ def load_seen() -> dict[str, str]:
 
 
 def save_seen(seen: dict[str, str]) -> None:
-    # prune entries older than 7 days so the file doesn't grow forever
     cutoff = datetime.now(timezone.utc) - timedelta(days=7)
     pruned = {u: ts for u, ts in seen.items() if datetime.fromisoformat(ts) >= cutoff}
     STATE_FILE.write_text(json.dumps(pruned, indent=1))
 
 
-# --------------------------------------------------------------------------- telegram
 
 class TelegramUnavailable(Exception):
     """Telegram is unreachable or failing on its end — skip the run rather than fail it."""
@@ -179,7 +171,7 @@ class TelegramUnavailable(Exception):
 def tg(method: str, **params):
     try:
         resp = requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/{method}", json=params, timeout=30)
-    except requests.RequestException as e:  # timeout, connection error
+    except requests.RequestException as e:
         raise TelegramUnavailable(f"{method}: {e}") from e
     if resp.status_code >= 500 or resp.status_code == 429:
         raise TelegramUnavailable(f"{method}: HTTP {resp.status_code}")
@@ -204,7 +196,6 @@ def format_messages(items: list[dict]) -> list[tuple[str, list[dict]]]:
         if it.get("company"):
             prefix += f"{html_escape(it['company'])} · "
         lines.append(f"• {prefix}<a href=\"{it['url']}\">{html_escape(it['title'])}</a>")
-    # Telegram caps messages at 4096 chars; chunk if needed.
     messages, current, chunk = [], header, []
     for it, line in zip(items, lines):
         if len(current) + len(line) + 1 > 4000:
@@ -229,7 +220,6 @@ def send(items: list[dict], posted: list[dict]) -> None:
         time.sleep(1)
 
 
-# --------------------------------------------------------------------------- main
 
 def run_once(dry_run: bool = False) -> None:
     seen = load_seen()
@@ -258,7 +248,6 @@ def run_once(dry_run: bool = False) -> None:
     try:
         send(new, posted)
     finally:
-        # record whatever went out, even if a later message failed, so it isn't re-posted
         if posted:
             for it in posted:
                 seen[it["url"]] = it["published"].isoformat()
@@ -300,7 +289,7 @@ def main() -> None:
     try:
         me = tg("getMe")
     except TelegramUnavailable as e:
-        if not args.once:  # loop mode should fail loudly so a supervisor can restart it
+        if not args.once:
             sys.exit(f"Telegram unavailable: {e}")
         log.warning("Telegram unavailable, skipping this run: %s", e)
         return
