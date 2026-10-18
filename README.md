@@ -39,10 +39,6 @@ Scheduler job (`0 7,11,13,15 * * 1-5`, America/New_York) POSTs to
 2. Repo → Settings → Secrets and variables → Actions → add `TELEGRAM_TOKEN` and `TELEGRAM_CHAT_ID`.
 3. Actions tab → "Insider purchase alerts" → Run workflow, to test.
 
-### Running locally on a schedule
-
-`python bot.py` (no flags) loops forever, checking every `INTERVAL_HOURS`. Don't run it alongside the
-GitHub Action — each keeps its own `seen.json`, so you'd get duplicate posts.
 
 ## How it works
 
