@@ -1,9 +1,4 @@
 {
- "https://www.marketbeat.com/instant-alerts/insider-agora-nasdaq-api-stock-insider-bin-zhao-buys-8545-shares-2026-10-19/": "2026-10-19T11:08:08.413000+00:00",
- "https://www.marketbeat.com/instant-alerts/insider-agora-nasdaq-api-ceo-buys-8800-shares-of-company-stock-2026-10-19/": "2026-10-19T11:08:08.093000+00:00",
- "https://www.marketbeat.com/instant-alerts/insider-applied-digital-nasdaq-apld-ceo-wes-cummins-purchases-55803-shares-of-stock-2026-10-19/": "2026-10-19T11:08:07.370000+00:00",
- "https://www.marketbeat.com/instant-alerts/insider-applied-digital-nasdaq-apld-president-buys-300000-shares-of-stock-2026-10-19/": "2026-10-19T11:08:06.553000+00:00",
- "https://www.marketbeat.com/instant-alerts/insider-h-b-fuller-nyse-ful-stock-insider-muhammad-shahbaz-malik-buys-479-shares-2026-10-19/": "2026-10-19T13:08:08.900000+00:00",
  "https://www.marketbeat.com/instant-alerts/insider-insider-buying-coca-cola-hbc-lon-cch-insider-buys-516486-in-stock-2026-10-19/": "2026-10-19T15:08:09.200000+00:00",
  "https://www.marketbeat.com/instant-alerts/insider-itm-power-lon-itm-insider-simon-bourne-buys-169-shares-of-company-stock-2026-10-20/": "2026-10-20T05:08:06.247000+00:00",
  "https://www.marketbeat.com/instant-alerts/insider-el-paso-nyseamerican-ep-stock-insider-phil-mulacek-purchases-5878-shares-2026-10-19/": "2026-10-19T17:08:00-04:00",
@@ -93,5 +88,9 @@
  "https://www.marketbeat.com/instant-alerts/insider-rent-the-runway-nasdaq-rent-director-buys-632922-shares-of-stock-2026-10-23/": "2026-10-23T15:08:00-04:00",
  "https://www.marketbeat.com/instant-alerts/insider-corebridge-financial-nyse-crbg-major-shareholder-acquires-217182-shares-of-company-stock-2026-10-23/": "2026-10-23T15:08:00-04:00",
  "https://www.marketbeat.com/instant-alerts/insider-insider-buying-city-of-london-investment-group-lon-clig-insider-purchases-522-in-stock-2026-10-23/": "2026-10-23T13:08:00-04:00",
- "https://www.marketbeat.com/instant-alerts/insider-city-of-london-investment-group-lon-clig-stock-insider-rian-dartnell-buys-4880-shares-2026-10-23/": "2026-10-23T13:08:00-04:00"
+ "https://www.marketbeat.com/instant-alerts/insider-city-of-london-investment-group-lon-clig-stock-insider-rian-dartnell-buys-4880-shares-2026-10-23/": "2026-10-23T13:08:00-04:00",
+ "https://www.marketbeat.com/instant-alerts/insider-insider-buying-restore-lon-rst-insider-purchases-5812-shares-of-company-stock-2026-10-26/": "2026-10-26T11:08:21.420000+00:00",
+ "https://www.marketbeat.com/instant-alerts/insider-corero-network-security-lon-cns-insider-carl-herberger-purchases-227272-shares-of-company-stock-2026-10-26/": "2026-10-26T11:08:18.860000+00:00",
+ "https://www.marketbeat.com/instant-alerts/insider-insider-buying-ig-group-lon-igg-insider-acquires-94400-in-stock-2026-10-26/": "2026-10-26T11:08:16.487000+00:00",
+ "https://www.marketbeat.com/instant-alerts/insider-insider-buying-primary-health-properties-lon-php-insider-acquires-4973969-in-stock-2026-10-26/": "2026-10-26T09:08:11.460000+00:00"
 }
